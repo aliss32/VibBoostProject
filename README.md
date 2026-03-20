@@ -4,7 +4,8 @@
 VibBoost is an advanced, high-performance C# utility designed to transform your gaming experience. Unlike standard boosters, it uses a **Non-Linear (Logarithmic) Power Curve** to convert system audio and game feedback into realistic, organic haptic vibrations. 
 
 > **Note:** Especially effective for gamepads like "Logitech F710" or controllers with naturally low vibration intensity.
-
+---
+<img width="1331" height="687" alt="finalss" src="https://github.com/user-attachments/assets/d23070c2-e38a-4675-945c-2434ed787a82" />
 ---
 
 ## 🚀 Key Features
