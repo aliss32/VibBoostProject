@@ -1,39 +1,53 @@
 # VibBoostProject
-A project that increases your controllers vibration. Especially gamepads like "F710" with low vibration.
+A Tool that increases your controllers vibration with AUDIO input. Especially gamepads like "F710" with low vibration.
 
-# 🎮 VibBoostProject (Universal Vibration Boost)
+🎮 VibBoost V1.0.0 (Haptic Live Dashboard)
 
-VibBoostProject is a high-performance C# utility designed to amplify gamepad vibration intensity and prevent input conflicts using **HidHide** integration.
+VIB-BOOST is an advanced, high-performance C# utility designed to transform your gaming experience. Unlike standard boosters, it uses a Non-Linear (Logarithmic) Power Curve to convert system audio and game feedback into realistic, organic haptic vibrations.
 
-## 🚀 Key Features
-- **Dynamic Multiplier:** Real-time vibration boosting using Numpad controls during gameplay.
-- **HidHide Synchronization:** Automatically manages physical controller cloaking to prevent "Double Controller" issues.
-- **Single-File EXE:** Self-contained architecture; no installation or .NET setup required.
-- **Low Latency:** Minimal input lag via **ViGEmBus** virtual controller emulation.
+🚀 Key Features
+Hybrid Mixer Engine: Simultaneously merges Windows Audio Peaks with real-time Game Feedback.
 
-## 🛠 Required Drivers (Dependencies)
-To ensure the program functions correctly, the following drivers **must** be installed:
+Auto-Dependency Installer: Automatically detects, downloads, and installs ViGEmBus and Chocolatey if missing (Requires Admin).
 
-1.  **[ViGEmBus Driver](https://github.com/nefarius/ViGEmBus/releases/latest)** (Required for virtual controller emulation)
-2.  **[HidHide Driver](https://github.com/nefarius/HidHide/releases/latest)** (Required to hide the physical controller from games)
-3.  **[.NET 8.0 Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)** (System core dependency)
+Smart Smoothing (Organic Feel): Features an Attack/Release algorithm to prevent "mechanical" vibrations and provide a "tok" (premium) haptic feel.
 
-## 🎮 How to Use
-1.  Download the latest standalone `.exe` from the [Releases](https://github.com/aliss32/VibBoostProject/releases) section.
-2.  Run the application as **Administrator** (Required for HidHide CLI commands).
-3.  Open **HidHide Configuration Client** and:
-    - Add `VibBoostProject.exe` to the **Applications** whitelist tab.
-    - Select your physical controller in the **Devices** tab and check **"Enable device hiding"**.
-4.  Launch your game and enjoy the enhanced haptic feedback!
+Live Dashboard UI: A flicker-free console interface with real-time audio input and vibration output visualizers.
 
-## ⌨️ Controls (Numpad)
-- **[+]** : Increase vibration power (+0.5x)
-- **[-]** : Decrease vibration power (-0.5x)
-- **[0]** : Emergency Mute (Sets multiplier to 0)
-- **[Ctrl + C]** : Safe Exit
+Zero-Setup Architecture: Single-file EXE with all libraries (NAudio, ViGEm, SharpDX) embedded. No .NET installation required.
 
-## 📜 License
-This project is licensed under the **GPL-3.0 License**. See the `LICENSE` file for details.
+🛠️ Intelligent Setup (Auto-Healing)
+You no longer need to manually install drivers.
 
----
+Run VibBoost.exe as Administrator.
+
+The program will scan your system for ViGEmBus.
+
+If missing, it will automatically initiate a safe installation via Chocolatey.
+
+Note: A system restart is required only once after the initial driver installation.
+
+⌨️ Controls (Numpad)
+(NUM) [+] / [-] : Adjust Minimum Vibration Power (Base Intensity).
+
+(NUM) [*] / [/] : Adjust Noise Gate (Filters out background static/hiss).
+
+(Del) : Toggle Smoothing (Switch between Organic/Soft and Raw/Sharp vibration).
+
+[Ctrl + C] : Safe Exit.
+
+📊 Live Monitoring
+The dashboard provides two real-time progress bars:
+
+AUDIO IN: Shows exactly how much sound the engine is picking up.
+
+VIB OUT: Shows the final intensity being sent to your controller's motors.
+
+📜 Requirements
+Windows 10/11 (64-bit)
+
+Xbox Compatible Controller (Physical or Emulated)
+
+Internet Connection (Only for the first run to auto-install drivers)
+
 *If you find this tool helpful, don't forget to give it a ⭐ (Star)!*
