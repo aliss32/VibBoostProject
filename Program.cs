@@ -1,5 +1,6 @@
 using System;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Linq;
 using System.Diagnostics;
 using System.Security.Principal;
@@ -11,7 +12,7 @@ using NAudio.CoreAudioApi;
 
 class Program
 {
-    static string appVersion = "1.0.0";
+    static string appVersion = "1.0.1";
     static string owner = "alissgmr";
     
     static float minVibration = 0.30f; 
@@ -21,15 +22,19 @@ class Program
     static float currentPeak = 0f;
     static bool smoothingEnabled = true;
     
-    static float attackSpeed = 0.6f;
-    static float releaseSpeed = 0.05f;
+    // Gecikme hissini azaltmak icin atak hizi artirildi (0.6 -> 0.85)
+    static float attackSpeed = 0.85f;
+    static float releaseSpeed = 0.06f;
+
+    static bool isDeviceConnected = false;
+    static string currentDeviceName = "Waiting...";
 
     static bool IsAdmin() => new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator);
 
     static void CheckDependencies()
     {
         try {
-            using (var testClient = new ViGEmClient()) { } // Test baslat
+            using (var testClient = new ViGEmClient()) { }
         }
         catch (Exception)
         {
@@ -77,7 +82,7 @@ class Program
     {
         ProcessStartInfo psi = new ProcessStartInfo("powershell", $"-Command \"{command}\"")
         {
-            Verb = "runas", // Admin yetkisi zorla
+            Verb = "runas",
             UseShellExecute = true,
             WindowStyle = ProcessWindowStyle.Normal
         };
@@ -90,49 +95,56 @@ class Program
         return "[" + new string('█', blocks) + new string('-', width - blocks) + "]";
     }
 
-    static void RenderUI(bool isConnected, string deviceName)
+    // Arayuz cizimi artik ana donguyu yavaslatmamasi icin ayri calisacak
+    static void UILoop()
     {
-        Console.SetCursorPosition(0, 0);
-        Console.ForegroundColor = ConsoleColor.Cyan;
-        Console.WriteLine("============================================================");
-        Console.WriteLine($"       VIB-BOOST V{appVersion} - HAPTIC LIVE DASHBOARD           ");
-        Console.WriteLine($"       Developed by: {owner}                                ");
-        Console.WriteLine("============================================================");
-        
-        Console.ResetColor();
-        Console.Write("[ STATUS ] ");
-        if (isConnected) { Console.ForegroundColor = ConsoleColor.Green; Console.WriteLine("CONNECTED (Active)     "); }
-        else { Console.ForegroundColor = ConsoleColor.Red; Console.WriteLine("SEARCHING CONTROLLER..."); }
-        Console.ResetColor();
+        while (true)
+        {
+            Console.SetCursorPosition(0, 0);
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine("============================================================");
+            Console.WriteLine($"       VIB-BOOST V{appVersion} - HAPTIC LIVE DASHBOARD           ");
+            Console.WriteLine($"       Developed by: {owner}                                ");
+            Console.WriteLine("============================================================");
+            
+            Console.ResetColor();
+            Console.Write("[ STATUS ] ");
+            if (isDeviceConnected) { Console.ForegroundColor = ConsoleColor.Green; Console.WriteLine("CONNECTED (Active)     "); }
+            else { Console.ForegroundColor = ConsoleColor.Red; Console.WriteLine("SEARCHING CONTROLLER..."); }
+            Console.ResetColor();
 
-        Console.WriteLine($"[ DEVICE ] {deviceName.PadRight(40)}");
-        Console.WriteLine("------------------------------------------------------------");
+            Console.WriteLine($"[ DEVICE ] {currentDeviceName.PadRight(40)}");
+            Console.WriteLine("------------------------------------------------------------");
 
-        Console.WriteLine($"[ POWER  ] %{(minVibration * 100):0}  {GetProgressBar(minVibration)} (Numpad +/-)");
-        Console.WriteLine($"[ GATE   ] %{(noiseGate * 100):0}   {GetProgressBar(noiseGate)} (Numpad * / /)");
-        Console.Write($"[ SMOOTH ] ");
-        if (smoothingEnabled) { Console.ForegroundColor = ConsoleColor.Magenta; Console.Write("ON (Organic)   "); }
-        else { Console.ForegroundColor = ConsoleColor.Yellow; Console.Write("OFF (Raw Data) "); }
-        Console.ResetColor();
-        Console.WriteLine(" (Numpad . / Del)");
+            // POWER yerine MIN VIB yazildi
+            Console.WriteLine($"[ MIN VIB] %{(minVibration * 100):0}  {GetProgressBar(minVibration)} (Numpad +/-)");
+            Console.WriteLine($"[ GATE   ] %{(noiseGate * 100):0}   {GetProgressBar(noiseGate)} (Numpad * / /)");
+            Console.Write($"[ SMOOTH ] ");
+            if (smoothingEnabled) { Console.ForegroundColor = ConsoleColor.Magenta; Console.Write("ON (Organic)   "); }
+            else { Console.ForegroundColor = ConsoleColor.Yellow; Console.Write("OFF (Raw Data) "); }
+            Console.ResetColor();
+            Console.WriteLine(" (Numpad . / Del)");
 
-        Console.WriteLine("------------------------------------------------------------");
-        Console.ForegroundColor = ConsoleColor.White;
-        Console.WriteLine(" LIVE MONITORING:");
-        Console.Write(" AUDIO IN : ");
-        Console.ForegroundColor = ConsoleColor.Blue;
-        Console.Write($"%{(currentPeak * 100):00} ".PadLeft(5));
-        Console.WriteLine(GetProgressBar(currentPeak, 30));
-        Console.ForegroundColor = ConsoleColor.White;
-        Console.Write(" VIB OUT  : ");
-        Console.ForegroundColor = ConsoleColor.Green;
-        Console.Write($"%{(currentVibration * 100):00} ".PadLeft(5));
-        Console.WriteLine(GetProgressBar(currentVibration, 30));
+            Console.WriteLine("------------------------------------------------------------");
+            Console.ForegroundColor = ConsoleColor.White;
+            Console.WriteLine(" LIVE MONITORING:");
+            Console.Write(" AUDIO IN : ");
+            Console.ForegroundColor = ConsoleColor.Blue;
+            Console.Write($"%{(currentPeak * 100):00} ".PadLeft(5));
+            Console.WriteLine(GetProgressBar(currentPeak, 30));
+            Console.ForegroundColor = ConsoleColor.White;
+            Console.Write(" VIB OUT  : ");
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.Write($"%{(currentVibration * 100):00} ".PadLeft(5));
+            Console.WriteLine(GetProgressBar(currentVibration, 30));
 
-        Console.ResetColor();
-        Console.WriteLine("------------------------------------------------------------");
-        Console.WriteLine(" [Ctrl+C] to Exit | High-Performance Haptic Engine          ");
-        Console.WriteLine("============================================================");
+            Console.ResetColor();
+            Console.WriteLine("------------------------------------------------------------");
+            Console.WriteLine(" [Ctrl+C] to Exit | Low-Latency Haptic Engine               ");
+            Console.WriteLine("============================================================");
+
+            Thread.Sleep(30); // Ekrani saniyede ~33 kez guncelle (Titreşim döngüsünü etkilemez)
+        }
     }
 
     static void Main(string[] args)
@@ -140,14 +152,15 @@ class Program
         Console.Title = $"VIB-BOOST V{appVersion} - {owner}";
         Console.CursorVisible = false;
 
-        // --- GEREKLILIK KONTROLU ---
         CheckDependencies();
 
         ViGEmClient client = new ViGEmClient();
         var enumerator = new MMDeviceEnumerator();
         var audioDevice = enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
-        var virtualPad = client.CreateXbox360Controller();
         
+        if (audioDevice != null) currentDeviceName = audioDevice.FriendlyName;
+
+        var virtualPad = client.CreateXbox360Controller();
         virtualPad.FeedbackReceived += (s, e) => {
             gameVibration = Math.Max(e.LargeMotor, e.SmallMotor) / 255.0f;
         };
@@ -156,11 +169,18 @@ class Program
         var controllers = new[] { new Controller(UserIndex.One), new Controller(UserIndex.Two), new Controller(UserIndex.Three) };
         Controller realPad = controllers.FirstOrDefault(c => c.IsConnected);
 
-        int uiCounter = 0;
+        // UI'i tamamen farkli bir Thread'e atiyoruz (Gecikmeyi onlemek icin)
+        Task.Run(() => UILoop());
+
+        // Ana isi yapan Thread'in onceligini Windows'ta en uste aliyoruz
+        Thread.CurrentThread.Priority = ThreadPriority.Highest;
+
         while (true) 
         {
             if (realPad == null || !realPad.IsConnected)
                 realPad = controllers.FirstOrDefault(c => c.IsConnected);
+
+            isDeviceConnected = realPad != null && realPad.IsConnected;
 
             if (Console.KeyAvailable) {
                 var key = Console.ReadKey(true).Key;
@@ -171,14 +191,16 @@ class Program
                 else if (key == ConsoleKey.Decimal || key == ConsoleKey.Separator || key == ConsoleKey.Delete) smoothingEnabled = !smoothingEnabled;
             }
 
-            if (realPad != null && realPad.IsConnected) 
+            if (isDeviceConnected) 
             {
-                currentPeak = audioDevice.AudioMeterInformation.MasterPeakValue;
+                currentPeak = audioDevice?.AudioMeterInformation.MasterPeakValue ?? 0f;
                 float audioTarget = 0f;
+                
                 if (currentPeak > noiseGate) {
                     float normalized = (currentPeak - noiseGate) / (1f - noiseGate);
                     audioTarget = minVibration + (normalized * normalized * (1f - minVibration));
                 }
+                
                 float finalTarget = Math.Max(audioTarget, gameVibration);
 
                 if (smoothingEnabled) {
@@ -216,11 +238,8 @@ class Program
                 virtualPad.SetAxisValue(Xbox360Axis.RightThumbY, state.Gamepad.RightThumbY);
             }
             
-            if (uiCounter++ >= 6) {
-                RenderUI(realPad != null, audioDevice.FriendlyName);
-                uiCounter = 0;
-            }
-            Thread.Sleep(5);
+            // UI artik baska thread'de oldugu icin burada counter vs. yok
+            Thread.Sleep(5); // Sadece saf titresim islemi icin gereken minimal bekleme
         }
     }
 }
