@@ -51,3 +51,5 @@ The dashboard provides two real-time, high-precision progress bars:
 
 ---
 *If you find this tool helpful, don't forget to give it a ⭐ (Star) on GitHub!*
+---
+*Note: This documentation was polished with the help of AI to provide clear English instructions, but the project is independently developed by alissgmr.*
