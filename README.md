@@ -48,6 +48,13 @@ The dashboard provides two real-time, high-precision progress bars:
 
 ---
 
+## Q&A
+**Q :** Why it comes with %30 minimum vibration?
+
+**A :** F710 has near zero vibration below %30
+
+---
+
 ## 📜 Requirements
 - **OS:** Windows 10/11 (64-bit)
 - **Hardware:** Xbox Compatible Controller (Physical or Emulated)
