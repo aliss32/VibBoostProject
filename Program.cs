@@ -9,11 +9,12 @@ using Nefarius.ViGEm.Client.Targets;
 using Nefarius.ViGEm.Client.Targets.Xbox360;
 using SharpDX.XInput;
 using NAudio.CoreAudioApi;
-using NAudio.Wave; 
+using NAudio.Wave;
+using NAudio.Dsp; // GERCEK BASS FILTRELERI ICIN EKLENDI
 
 class Program
 {
-    static string appVersion = "1.0.3";
+    static string appVersion = "1.0.4";
     static string owner = "alissgmr";
     
     static float minVibration = 0.30f; 
@@ -22,7 +23,7 @@ class Program
     static float gameVibration = 0f;
     static float currentPeak = 0f;
     static bool smoothingEnabled = true;
-    static bool bassModeOnly = false; 
+    static bool bassModeOnly = false; // NumPad 0 ile kontrol edilecek
     
     static float attackSpeed = 0.85f;
     static float releaseSpeed = 0.06f;
@@ -30,9 +31,12 @@ class Program
     static bool isDeviceConnected = false;
     static string currentDeviceName = "Waiting...";
     
-    static WasapiLoopbackCapture capture = new WasapiLoopbackCapture();
-    static float lastBassPeak = 0f;
-    static float filterState = 0f; // Low-Pass Filter Hafizasi
+    static WasapiLoopbackCapture? capture;
+    static float lastBassIntensity = 0f;
+
+    // Gercek Ekolayzir Filtreleri
+    static BiQuadFilter? subBassFilter;
+    static BiQuadFilter? midBassFilter;
 
     static bool IsAdmin() => new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator);
 
@@ -102,33 +106,60 @@ class Program
 
     static void Main(string[] args)
     {
-        Console.Title = $"VIB-BOOST V{appVersion} - {owner} (Haptic Engine)";
+        Console.Title = $"VIB-BOOST V{appVersion} - DSP Haptic Engine";
         Console.CursorVisible = false;
 
         CheckDependencies();
 
         ViGEmClient client = new ViGEmClient();
         var enumerator = new MMDeviceEnumerator();
-        var audioDevice = enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
-        currentDeviceName = audioDevice?.FriendlyName ?? "Default Audio";
+        
+        // NULL KONTROLLERI (CS8600 / CS8602 Uyarilarini Cözer)
+        MMDevice? audioDevice = enumerator.HasDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia) 
+            ? enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia) 
+            : null;
 
-        // GERCEK BASS FILTRESI (Low-Pass Filter)
+        currentDeviceName = audioDevice?.FriendlyName ?? "No Audio Device Found";
+
+        capture = new WasapiLoopbackCapture();
+        var format = capture.WaveFormat;
+
+        // DSP FILTRELERINI OLUSTUR (Ornekleme hizina gore)
+        // Sub-Bass: 60Hz altindaki her seyi gecirir
+        subBassFilter = BiQuadFilter.LowPassFilter((float)format.SampleRate, 60f, 1f);
+        
+        // Mid-Bass: Sadece 60Hz ile 120Hz arasini gucendirir (BandPass)
+        midBassFilter = BiQuadFilter.BandPassFilterConstantPeakGain((float)format.SampleRate, 90f, 1f);
+
         capture.DataAvailable += (s, e) => {
-            if (!bassModeOnly) return;
-            float max = 0;
-            var buffer = new WaveBuffer(e.Buffer);
-            int sampleCount = e.BytesRecorded / 4;
+            if (!bassModeOnly || subBassFilter == null || midBassFilter == null) return;
             
-            for (int i = 0; i < sampleCount; i++)
+            var buffer = new WaveBuffer(e.Buffer);
+            // Cift kanal (Stereo) float verisini frame frame islemek icin / 8 (4 byte * 2 kanal)
+            int frameCount = e.BytesRecorded / 8; 
+            
+            float subBassMax = 0f;
+            float midBassMax = 0f;
+
+            for (int i = 0; i < frameCount; i++)
             {
-                float sample = buffer.FloatBuffer[i];
-                // 0.05f degeri frekans kesim noktasidir. 
-                filterState = filterState + 0.05f * (sample - filterState);
-                float filteredSample = Math.Abs(filterState);
-                if (filteredSample > max) max = filteredSample;
+                // Sol ve sag kanali alip Mono'ya cevir
+                float sampleL = buffer.FloatBuffer[i * 2];
+                float sampleR = buffer.FloatBuffer[(i * 2) + 1];
+                float monoSample = (sampleL + sampleR) / 2f;
+
+                // Gercek frekans filtrelerinden gecir
+                float subSample = subBassFilter.Transform(monoSample);
+                float midSample = midBassFilter.Transform(monoSample);
+
+                if (Math.Abs(subSample) > subBassMax) subBassMax = Math.Abs(subSample);
+                if (Math.Abs(midSample) > midBassMax) midBassMax = Math.Abs(midSample);
             }
-            // Bass frekanslarinin genligi dusuk olur, bu yuzden carpan ekledik
-            lastBassPeak = Math.Min(1.0f, max * 2.5f); 
+
+            // GUC DAGILIMI: Sub-Bass cok guclu titretir, Mid-Bass orta titretir
+            float weightedIntensity = (subBassMax * 2.0f) + (midBassMax * 1.0f);
+            
+            lastBassIntensity = Math.Min(1.0f, weightedIntensity); 
         };
         capture.StartRecording();
 
@@ -139,7 +170,7 @@ class Program
         virtualPad.Connect();
 
         var controllers = new[] { new Controller(UserIndex.One), new Controller(UserIndex.Two), new Controller(UserIndex.Three) };
-        Controller realPad = controllers.FirstOrDefault(c => c.IsConnected);
+        Controller? realPad = controllers.FirstOrDefault(c => c.IsConnected);
 
         Task.Run(() => UILoop());
         Thread.CurrentThread.Priority = ThreadPriority.Highest;
@@ -158,12 +189,13 @@ class Program
                 else if (key == ConsoleKey.Multiply) noiseGate = Math.Min(0.5f, noiseGate + 0.01f);
                 else if (key == ConsoleKey.Divide) noiseGate = Math.Max(0.01f, noiseGate - 0.01f);
                 else if (key == ConsoleKey.Decimal || key == ConsoleKey.Delete) smoothingEnabled = !smoothingEnabled;
-                else if (key == ConsoleKey.Enter) bassModeOnly = !bassModeOnly;
+                else if (key == ConsoleKey.NumPad0 || key == ConsoleKey.D0) bassModeOnly = !bassModeOnly; // NUMPAD 0 ILE BASS MODU AC/KAPA
             }
 
-            if (isDeviceConnected) 
+            if (isDeviceConnected && realPad != null) 
             {
-                currentPeak = bassModeOnly ? lastBassPeak : (audioDevice?.AudioMeterInformation.MasterPeakValue ?? 0f);
+                float systemPeak = audioDevice?.AudioMeterInformation.MasterPeakValue ?? 0f;
+                currentPeak = bassModeOnly ? lastBassIntensity : systemPeak;
                 
                 float audioTarget = 0f;
                 if (currentPeak > noiseGate) {
@@ -186,7 +218,7 @@ class Program
 
                 ForwardInputs(realPad, virtualPad);
             }
-            Thread.Sleep(5); // Stabilite icin 5ms 
+            Thread.Sleep(5); 
         }
     }
 
@@ -213,10 +245,10 @@ class Program
             Console.WriteLine($"[ GATE   ] %{(noiseGate * 100):0}   {GetProgressBar(noiseGate)} (Numpad * / /)");
             
             Console.Write($"[ MODE   ] ");
-            if (bassModeOnly) { Console.ForegroundColor = ConsoleColor.Red; Console.Write("BASS ONLY (Heavy)  "); }
+            if (bassModeOnly) { Console.ForegroundColor = ConsoleColor.Red; Console.Write("REAL DSP BASS ONLY "); }
             else { Console.ForegroundColor = ConsoleColor.Blue; Console.Write("FULL SPECTRUM      "); }
             Console.ResetColor();
-            Console.WriteLine(" (Enter)");
+            Console.WriteLine(" (Num 0)");
 
             Console.Write($"[ SMOOTH ] ");
             if (smoothingEnabled) { Console.ForegroundColor = ConsoleColor.Magenta; Console.Write("ON (Organic)   "); }
@@ -239,7 +271,7 @@ class Program
 
             Console.ResetColor();
             Console.WriteLine("------------------------------------------------------------");
-            Console.WriteLine(" [Ctrl+C] to Exit | Developed by alissgmr                   ");
+            Console.WriteLine(" [Ctrl+C] to Exit | DSP Engineering by alissgmr             ");
             Console.WriteLine("============================================================");
 
             Thread.Sleep(33);
