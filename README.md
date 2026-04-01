@@ -1,4 +1,4 @@
-# 🎮 VibBoost V1.0.0 (Haptic Live Dashboard)
+# 🎮 VibBoost V1.0.4 (Haptic Live Dashboard)
 **Developed by: alissgmr**
 
 VibBoost is an advanced, high-performance C# utility designed to transform your gaming experience. Unlike standard boosters, it uses a **Non-Linear (Logarithmic) Power Curve** to convert system audio and game feedback into realistic, organic haptic vibrations. 
@@ -32,7 +32,8 @@ You no longer need to manually install drivers. The program handles the heavy li
 | :--- | :--- |
 | **(NUM) [+] / [-]** | Adjust **Minimum Vibration Power** (Base Intensity) |
 | **(NUM) [*] / [/]** | Adjust **Noise Gate** (Filters out background static/hiss) |
-| **(NUM) [Del]** | **Toggle Smoothing** (Switch between Organic/Soft and Raw/Sharp) |
+| **[Del]** | **Toggle Smoothing** (Switch between Organic/Soft and Raw/Sharp) |
+| **(NUM) [0]** | Toggle  REAL DSP BASS ONLY Mode  |
 | **[Ctrl + C]** | Safe Exit |
 
 ---
