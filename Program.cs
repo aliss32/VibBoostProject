@@ -9,10 +9,11 @@ using Nefarius.ViGEm.Client.Targets;
 using Nefarius.ViGEm.Client.Targets.Xbox360;
 using SharpDX.XInput;
 using NAudio.CoreAudioApi;
+using NAudio.Wave; 
 
 class Program
 {
-    static string appVersion = "1.0.1";
+    static string appVersion = "1.0.3";
     static string owner = "alissgmr";
     
     static float minVibration = 0.30f; 
@@ -21,20 +22,24 @@ class Program
     static float gameVibration = 0f;
     static float currentPeak = 0f;
     static bool smoothingEnabled = true;
+    static bool bassModeOnly = false; 
     
-    // Gecikme hissini azaltmak icin atak hizi artirildi (0.6 -> 0.85)
     static float attackSpeed = 0.85f;
     static float releaseSpeed = 0.06f;
 
     static bool isDeviceConnected = false;
     static string currentDeviceName = "Waiting...";
+    
+    static WasapiLoopbackCapture capture = new WasapiLoopbackCapture();
+    static float lastBassPeak = 0f;
+    static float filterState = 0f; // Low-Pass Filter Hafizasi
 
     static bool IsAdmin() => new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator);
 
     static void CheckDependencies()
     {
         try {
-            using (var testClient = new ViGEmClient()) { }
+            using (var testClient = new ViGEmClient()) { } 
         }
         catch (Exception)
         {
@@ -82,7 +87,7 @@ class Program
     {
         ProcessStartInfo psi = new ProcessStartInfo("powershell", $"-Command \"{command}\"")
         {
-            Verb = "runas",
+            Verb = "runas", 
             UseShellExecute = true,
             WindowStyle = ProcessWindowStyle.Normal
         };
@@ -91,65 +96,13 @@ class Program
 
     static string GetProgressBar(float percent, int width = 20)
     {
-        int blocks = (int)(percent * width);
+        int blocks = (int)(Math.Clamp(percent, 0f, 1f) * width);
         return "[" + new string('█', blocks) + new string('-', width - blocks) + "]";
-    }
-
-    // Arayuz cizimi artik ana donguyu yavaslatmamasi icin ayri calisacak
-    static void UILoop()
-    {
-        while (true)
-        {
-            Console.SetCursorPosition(0, 0);
-            Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.WriteLine("============================================================");
-            Console.WriteLine($"       VIB-BOOST V{appVersion} - HAPTIC LIVE DASHBOARD           ");
-            Console.WriteLine($"       Developed by: {owner}                                ");
-            Console.WriteLine("============================================================");
-            
-            Console.ResetColor();
-            Console.Write("[ STATUS ] ");
-            if (isDeviceConnected) { Console.ForegroundColor = ConsoleColor.Green; Console.WriteLine("CONNECTED (Active)     "); }
-            else { Console.ForegroundColor = ConsoleColor.Red; Console.WriteLine("SEARCHING CONTROLLER..."); }
-            Console.ResetColor();
-
-            Console.WriteLine($"[ DEVICE ] {currentDeviceName.PadRight(40)}");
-            Console.WriteLine("------------------------------------------------------------");
-
-            // POWER yerine MIN VIB yazildi
-            Console.WriteLine($"[ MIN VIB] %{(minVibration * 100):0}  {GetProgressBar(minVibration)} (Numpad +/-)");
-            Console.WriteLine($"[ GATE   ] %{(noiseGate * 100):0}   {GetProgressBar(noiseGate)} (Numpad * / /)");
-            Console.Write($"[ SMOOTH ] ");
-            if (smoothingEnabled) { Console.ForegroundColor = ConsoleColor.Magenta; Console.Write("ON (Organic)   "); }
-            else { Console.ForegroundColor = ConsoleColor.Yellow; Console.Write("OFF (Raw Data) "); }
-            Console.ResetColor();
-            Console.WriteLine(" (Numpad . / Del)");
-
-            Console.WriteLine("------------------------------------------------------------");
-            Console.ForegroundColor = ConsoleColor.White;
-            Console.WriteLine(" LIVE MONITORING:");
-            Console.Write(" AUDIO IN : ");
-            Console.ForegroundColor = ConsoleColor.Blue;
-            Console.Write($"%{(currentPeak * 100):00} ".PadLeft(5));
-            Console.WriteLine(GetProgressBar(currentPeak, 30));
-            Console.ForegroundColor = ConsoleColor.White;
-            Console.Write(" VIB OUT  : ");
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.Write($"%{(currentVibration * 100):00} ".PadLeft(5));
-            Console.WriteLine(GetProgressBar(currentVibration, 30));
-
-            Console.ResetColor();
-            Console.WriteLine("------------------------------------------------------------");
-            Console.WriteLine(" [Ctrl+C] to Exit | Low-Latency Haptic Engine               ");
-            Console.WriteLine("============================================================");
-
-            Thread.Sleep(30); // Ekrani saniyede ~33 kez guncelle (Titreşim döngüsünü etkilemez)
-        }
     }
 
     static void Main(string[] args)
     {
-        Console.Title = $"VIB-BOOST V{appVersion} - {owner}";
+        Console.Title = $"VIB-BOOST V{appVersion} - {owner} (Haptic Engine)";
         Console.CursorVisible = false;
 
         CheckDependencies();
@@ -157,22 +110,38 @@ class Program
         ViGEmClient client = new ViGEmClient();
         var enumerator = new MMDeviceEnumerator();
         var audioDevice = enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
-        
-        if (audioDevice != null) currentDeviceName = audioDevice.FriendlyName;
+        currentDeviceName = audioDevice?.FriendlyName ?? "Default Audio";
+
+        // GERCEK BASS FILTRESI (Low-Pass Filter)
+        capture.DataAvailable += (s, e) => {
+            if (!bassModeOnly) return;
+            float max = 0;
+            var buffer = new WaveBuffer(e.Buffer);
+            int sampleCount = e.BytesRecorded / 4;
+            
+            for (int i = 0; i < sampleCount; i++)
+            {
+                float sample = buffer.FloatBuffer[i];
+                // 0.05f degeri frekans kesim noktasidir. 
+                filterState = filterState + 0.05f * (sample - filterState);
+                float filteredSample = Math.Abs(filterState);
+                if (filteredSample > max) max = filteredSample;
+            }
+            // Bass frekanslarinin genligi dusuk olur, bu yuzden carpan ekledik
+            lastBassPeak = Math.Min(1.0f, max * 2.5f); 
+        };
+        capture.StartRecording();
 
         var virtualPad = client.CreateXbox360Controller();
         virtualPad.FeedbackReceived += (s, e) => {
             gameVibration = Math.Max(e.LargeMotor, e.SmallMotor) / 255.0f;
         };
-
         virtualPad.Connect();
+
         var controllers = new[] { new Controller(UserIndex.One), new Controller(UserIndex.Two), new Controller(UserIndex.Three) };
         Controller realPad = controllers.FirstOrDefault(c => c.IsConnected);
 
-        // UI'i tamamen farkli bir Thread'e atiyoruz (Gecikmeyi onlemek icin)
         Task.Run(() => UILoop());
-
-        // Ana isi yapan Thread'in onceligini Windows'ta en uste aliyoruz
         Thread.CurrentThread.Priority = ThreadPriority.Highest;
 
         while (true) 
@@ -188,14 +157,15 @@ class Program
                 else if (key == ConsoleKey.Subtract || key == ConsoleKey.OemMinus) minVibration = Math.Max(0.0f, minVibration - 0.05f);
                 else if (key == ConsoleKey.Multiply) noiseGate = Math.Min(0.5f, noiseGate + 0.01f);
                 else if (key == ConsoleKey.Divide) noiseGate = Math.Max(0.01f, noiseGate - 0.01f);
-                else if (key == ConsoleKey.Decimal || key == ConsoleKey.Separator || key == ConsoleKey.Delete) smoothingEnabled = !smoothingEnabled;
+                else if (key == ConsoleKey.Decimal || key == ConsoleKey.Delete) smoothingEnabled = !smoothingEnabled;
+                else if (key == ConsoleKey.Enter) bassModeOnly = !bassModeOnly;
             }
 
             if (isDeviceConnected) 
             {
-                currentPeak = audioDevice?.AudioMeterInformation.MasterPeakValue ?? 0f;
-                float audioTarget = 0f;
+                currentPeak = bassModeOnly ? lastBassPeak : (audioDevice?.AudioMeterInformation.MasterPeakValue ?? 0f);
                 
+                float audioTarget = 0f;
                 if (currentPeak > noiseGate) {
                     float normalized = (currentPeak - noiseGate) / (1f - noiseGate);
                     audioTarget = minVibration + (normalized * normalized * (1f - minVibration));
@@ -214,32 +184,90 @@ class Program
                 ushort motorSpeed = (ushort)(currentVibration * 65535);
                 realPad.SetVibration(new Vibration { LeftMotorSpeed = motorSpeed, RightMotorSpeed = motorSpeed });
 
-                var state = realPad.GetState();
-                var b = state.Gamepad.Buttons;
-                virtualPad.SetButtonState(Xbox360Button.A, b.HasFlag(GamepadButtonFlags.A));
-                virtualPad.SetButtonState(Xbox360Button.B, b.HasFlag(GamepadButtonFlags.B));
-                virtualPad.SetButtonState(Xbox360Button.X, b.HasFlag(GamepadButtonFlags.X));
-                virtualPad.SetButtonState(Xbox360Button.Y, b.HasFlag(GamepadButtonFlags.Y));
-                virtualPad.SetButtonState(Xbox360Button.Start, b.HasFlag(GamepadButtonFlags.Start));
-                virtualPad.SetButtonState(Xbox360Button.Back, b.HasFlag(GamepadButtonFlags.Back));
-                virtualPad.SetButtonState(Xbox360Button.LeftShoulder, b.HasFlag(GamepadButtonFlags.LeftShoulder));
-                virtualPad.SetButtonState(Xbox360Button.RightShoulder, b.HasFlag(GamepadButtonFlags.RightShoulder));
-                virtualPad.SetButtonState(Xbox360Button.LeftThumb, b.HasFlag(GamepadButtonFlags.LeftThumb));
-                virtualPad.SetButtonState(Xbox360Button.RightThumb, b.HasFlag(GamepadButtonFlags.RightThumb));
-                virtualPad.SetButtonState(Xbox360Button.Up, b.HasFlag(GamepadButtonFlags.DPadUp));
-                virtualPad.SetButtonState(Xbox360Button.Down, b.HasFlag(GamepadButtonFlags.DPadDown));
-                virtualPad.SetButtonState(Xbox360Button.Left, b.HasFlag(GamepadButtonFlags.DPadLeft));
-                virtualPad.SetButtonState(Xbox360Button.Right, b.HasFlag(GamepadButtonFlags.DPadRight));
-                virtualPad.SetSliderValue(Xbox360Slider.LeftTrigger, state.Gamepad.LeftTrigger);
-                virtualPad.SetSliderValue(Xbox360Slider.RightTrigger, state.Gamepad.RightTrigger);
-                virtualPad.SetAxisValue(Xbox360Axis.LeftThumbX, state.Gamepad.LeftThumbX);
-                virtualPad.SetAxisValue(Xbox360Axis.LeftThumbY, state.Gamepad.LeftThumbY);
-                virtualPad.SetAxisValue(Xbox360Axis.RightThumbX, state.Gamepad.RightThumbX);
-                virtualPad.SetAxisValue(Xbox360Axis.RightThumbY, state.Gamepad.RightThumbY);
+                ForwardInputs(realPad, virtualPad);
             }
-            
-            // UI artik baska thread'de oldugu icin burada counter vs. yok
-            Thread.Sleep(5); // Sadece saf titresim islemi icin gereken minimal bekleme
+            Thread.Sleep(5); // Stabilite icin 5ms 
         }
+    }
+
+    static void UILoop()
+    {
+        while (true)
+        {
+            Console.SetCursorPosition(0, 0);
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine("============================================================");
+            Console.WriteLine($"       VIB-BOOST V{appVersion} - HAPTIC LIVE DASHBOARD           ");
+            Console.WriteLine("============================================================");
+            
+            Console.ResetColor();
+            Console.Write("[ STATUS ] ");
+            if (isDeviceConnected) { Console.ForegroundColor = ConsoleColor.Green; Console.WriteLine("CONNECTED (Active)     "); }
+            else { Console.ForegroundColor = ConsoleColor.Red; Console.WriteLine("SEARCHING CONTROLLER..."); }
+            Console.ResetColor();
+
+            Console.WriteLine($"[ DEVICE ] {currentDeviceName.PadRight(40)}");
+            Console.WriteLine("------------------------------------------------------------");
+
+            Console.WriteLine($"[ MIN VIB] %{(minVibration * 100):0}  {GetProgressBar(minVibration)} (Numpad +/-)");
+            Console.WriteLine($"[ GATE   ] %{(noiseGate * 100):0}   {GetProgressBar(noiseGate)} (Numpad * / /)");
+            
+            Console.Write($"[ MODE   ] ");
+            if (bassModeOnly) { Console.ForegroundColor = ConsoleColor.Red; Console.Write("BASS ONLY (Heavy)  "); }
+            else { Console.ForegroundColor = ConsoleColor.Blue; Console.Write("FULL SPECTRUM      "); }
+            Console.ResetColor();
+            Console.WriteLine(" (Enter)");
+
+            Console.Write($"[ SMOOTH ] ");
+            if (smoothingEnabled) { Console.ForegroundColor = ConsoleColor.Magenta; Console.Write("ON (Organic)   "); }
+            else { Console.ForegroundColor = ConsoleColor.Yellow; Console.Write("OFF (Raw Data) "); }
+            Console.ResetColor();
+            Console.WriteLine(" (Del)");
+
+            Console.WriteLine("------------------------------------------------------------");
+            Console.ForegroundColor = ConsoleColor.White;
+            Console.WriteLine(" LIVE MONITORING:");
+            Console.Write(" AUDIO IN : ");
+            Console.ForegroundColor = ConsoleColor.Blue;
+            Console.Write($"%{(currentPeak * 100):00} ".PadLeft(5));
+            Console.WriteLine(GetProgressBar(currentPeak, 30));
+            Console.ForegroundColor = ConsoleColor.White;
+            Console.Write(" VIB OUT  : ");
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.Write($"%{(currentVibration * 100):00} ".PadLeft(5));
+            Console.WriteLine(GetProgressBar(currentVibration, 30));
+
+            Console.ResetColor();
+            Console.WriteLine("------------------------------------------------------------");
+            Console.WriteLine(" [Ctrl+C] to Exit | Developed by alissgmr                   ");
+            Console.WriteLine("============================================================");
+
+            Thread.Sleep(33);
+        }
+    }
+
+    static void ForwardInputs(Controller real, IXbox360Controller virtualP) {
+        var s = real.GetState().Gamepad;
+        var b = s.Buttons;
+        virtualP.SetButtonState(Xbox360Button.A, b.HasFlag(GamepadButtonFlags.A));
+        virtualP.SetButtonState(Xbox360Button.B, b.HasFlag(GamepadButtonFlags.B));
+        virtualP.SetButtonState(Xbox360Button.X, b.HasFlag(GamepadButtonFlags.X));
+        virtualP.SetButtonState(Xbox360Button.Y, b.HasFlag(GamepadButtonFlags.Y));
+        virtualP.SetButtonState(Xbox360Button.Start, b.HasFlag(GamepadButtonFlags.Start));
+        virtualP.SetButtonState(Xbox360Button.Back, b.HasFlag(GamepadButtonFlags.Back));
+        virtualP.SetButtonState(Xbox360Button.LeftShoulder, b.HasFlag(GamepadButtonFlags.LeftShoulder));
+        virtualP.SetButtonState(Xbox360Button.RightShoulder, b.HasFlag(GamepadButtonFlags.RightShoulder));
+        virtualP.SetButtonState(Xbox360Button.LeftThumb, b.HasFlag(GamepadButtonFlags.LeftThumb));
+        virtualP.SetButtonState(Xbox360Button.RightThumb, b.HasFlag(GamepadButtonFlags.RightThumb));
+        virtualP.SetButtonState(Xbox360Button.Up, b.HasFlag(GamepadButtonFlags.DPadUp));
+        virtualP.SetButtonState(Xbox360Button.Down, b.HasFlag(GamepadButtonFlags.DPadDown));
+        virtualP.SetButtonState(Xbox360Button.Left, b.HasFlag(GamepadButtonFlags.DPadLeft));
+        virtualP.SetButtonState(Xbox360Button.Right, b.HasFlag(GamepadButtonFlags.DPadRight));
+        virtualP.SetSliderValue(Xbox360Slider.LeftTrigger, s.LeftTrigger);
+        virtualP.SetSliderValue(Xbox360Slider.RightTrigger, s.RightTrigger);
+        virtualP.SetAxisValue(Xbox360Axis.LeftThumbX, s.LeftThumbX);
+        virtualP.SetAxisValue(Xbox360Axis.LeftThumbY, s.LeftThumbY);
+        virtualP.SetAxisValue(Xbox360Axis.RightThumbX, s.RightThumbX);
+        virtualP.SetAxisValue(Xbox360Axis.RightThumbY, s.RightThumbY);
     }
 }
