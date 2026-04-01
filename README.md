@@ -5,13 +5,16 @@ VibBoost is an advanced, high-performance C# utility designed to transform your 
 
 > **Note:** Especially effective for gamepads like "Logitech F710" or controllers with naturally low vibration intensity.
 ---
-<img width="1331" height="687" alt="finalss" src="https://github.com/user-attachments/assets/d23070c2-e38a-4675-945c-2434ed787a82" />
+<img width="1347" height="685" alt="image" src="https://github.com/user-attachments/assets/970d95a2-dbda-42c1-a266-fb56e70bdc3e" />
+
+
 ---
 
 ## 🚀 Key Features
 * **Hybrid Mixer Engine:** Simultaneously merges Windows Audio Peaks with real-time Game Feedback.
 * **Auto-Dependency Installer:** Automatically detects, downloads, and installs **ViGEmBus** and **Chocolatey** if missing (Requires Admin).
 * **Smart Smoothing (Organic Feel):** Features an **Attack/Release algorithm** to prevent "mechanical" vibrations and provide a "tok" (premium) haptic feel.
+* **Only-Bass Mode:** Toggle **REAL DSP BASS ONLY** Mode on - off for better experience.
 * **Live Dashboard UI:** A flicker-free console interface with real-time audio input and vibration output visualizers.
 * **Zero-Setup Architecture:** Single-file EXE with all libraries (NAudio, ViGEm, SharpDX) embedded. No .NET installation required.
 
@@ -33,7 +36,7 @@ You no longer need to manually install drivers. The program handles the heavy li
 | **(NUM) [+] / [-]** | Adjust **Minimum Vibration Power** (Base Intensity) |
 | **(NUM) [*] / [/]** | Adjust **Noise Gate** (Filters out background static/hiss) |
 | **[Del]** | **Toggle Smoothing** (Switch between Organic/Soft and Raw/Sharp) |
-| **(NUM) [0]** | Toggle  REAL DSP BASS ONLY Mode  |
+| **(NUM) [0]** | Toggle  **REAL DSP BASS ONLY** Mode  |
 | **[Ctrl + C]** | Safe Exit |
 
 ---
