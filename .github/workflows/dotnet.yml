@@ -1,14 +1,16 @@
-name: Build and Release VibBoost
+name: Auto-Release on Program.cs Update
 
 on:
   push:
     branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+    paths:
+      - '**/Program.cs' # Sadece Program.cs güncellendiğinde çalışır
 
 jobs:
-  build:
+  build-and-release:
     runs-on: windows-latest
+    permissions:
+      contents: write
 
     steps:
     - name: Checkout Code
@@ -26,11 +28,23 @@ jobs:
       run: |
         dotnet publish -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true /p:PublishTrimmed=false /p:IncludeNativeLibrariesForSelfExtract=true -o ./publish
 
-    - name: Upload Build Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: VibBoost-Executable
-        path: ./publish/*.exe
+    # Benzersiz bir sürüm etiketi oluşturmak için o anki tarihi alır
+    - name: Generate Dynamic Version Tag
+      id: date
+      run: echo "date=$(Get-Date -Format 'yyyyMMdd-HHmmss')" >> $env:GITHUB_ENV
 
-  # İstersen buraya otomatik Release oluşturma da ekleyebiliriz ama 
-  # şimdilik her push'ta EXE'yi "Actions" sekmesinden indirmeni sağlar.
+    # EXE'yi otomatik olarak Releases sekmesinde yayınlar
+    - name: Create Auto Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: ./publish/*.exe
+        tag_name: build-${{ env.date }}
+        name: VibBoost Auto-Build (${{ env.date }})
+        body: |
+          🚀 **Automated Release triggered by Program.cs update.**
+          
+          *New changes have been pushed to the codebase. Download the .exe below to test the latest features.*
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
