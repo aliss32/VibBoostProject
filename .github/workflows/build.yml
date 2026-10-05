@@ -5,6 +5,7 @@ on:
     branches: [ "main" ]
     paths:
       - '**/Program.cs'
+      - '.github/workflows/build.yml'
 
 jobs:
   build-and-release:
@@ -42,9 +43,9 @@ jobs:
         tag_name: build-${{ env.date }}
         name: VibBoost Auto-Build (${{ env.date }})
         body: |
-          🚀 **Automated Release triggered by Program.cs update.**
+          🚀 **Automated Release triggered by update.**
           
-          New changes have been pushed to the codebase. Download and extract the .zip below (includes the .exe and the wwwroot folder for the Web GUI).
+          New changes have been pushed to the codebase or workflow. Download and extract the .zip below (includes the .exe and the wwwroot folder for the Web GUI).
         draft: false
         prerelease: false
       env:
