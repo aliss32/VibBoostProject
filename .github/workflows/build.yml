@@ -1,59 +1,51 @@
-name: Build and Release
+name: Auto-Release on Program Update
 
 on:
-push:
-branches: [ "main", "master" ]
-tags:
-- 'v*'
-pull_request:
-branches: [ "main", "master" ]
+  push:
+    branches: [ "main" ]
+    paths:
+      - '**/Program.cs'
 
 jobs:
-build:
-name: Build and Zip
-runs-on: windows-latest
+  build-and-release:
+    runs-on: windows-latest
+    permissions:
+      contents: write
 
-steps:
-- name: Checkout Code
-  uses: actions/checkout@v4
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
 
-- name: Setup .NET 8.0
-  uses: actions/setup-dotnet@v4
-  with:
-    dotnet-version: '8.0.x'
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 8.0.x
 
-- name: Restore Dependencies
-  run: dotnet restore
+    - name: Restore Dependencies
+      run: dotnet restore
 
-- name: Publish Application
-  run: dotnet publish -c Release -r win-x64 --no-restore -o ./publish_output
+    - name: Build and Publish
+      run: |
+        dotnet publish -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true /p:PublishTrimmed=false /p:IncludeNativeLibrariesForSelfExtract=true -o ./publish
 
-- name: Zip the Published Files
-  run: Compress-Archive -Path ./publish_output/* -DestinationPath VibBoost-Web-win-x64.zip
+    - name: Compress Release Files
+      run: Compress-Archive -Path ./publish/* -DestinationPath ./VibBoost-Web-Release.zip
 
-- name: Upload Build Artifact
-  uses: actions/upload-artifact@v4
-  with:
-    name: VibBoost-Web-Package
-    path: VibBoost-Web-win-x64.zip
+    - name: Generate Dynamic Version Tag
+      id: date
+      run: echo "date=$(Get-Date -Format 'yyyyMMdd-HHmmss')" >> $env:GITHUB_ENV
 
-
-release:
-name: Create GitHub Release
-needs: build
-if: startsWith(github.ref, 'refs/tags/')
-runs-on: ubuntu-latest
-permissions:
-contents: write
-
-steps:
-  - name: Download Artifact
-    uses: actions/download-artifact@v4
-    with:
-      name: VibBoost-Web-Package
-
-  - name: Create Release and Upload Asset
-    uses: softprops/action-gh-release@v2
-    with:
-      files: VibBoost-Web-win-x64.zip
-      generate_release_notes: true
+    - name: Create Auto Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: ./VibBoost-Web-Release.zip
+        tag_name: build-${{ env.date }}
+        name: VibBoost Auto-Build (${{ env.date }})
+        body: |
+          🚀 **Automated Release triggered by Program.cs update.**
+          
+          New changes have been pushed to the codebase. Download and extract the .zip below (includes the .exe and the wwwroot folder for the Web GUI).
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
