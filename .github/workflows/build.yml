@@ -1,0 +1,59 @@
+name: Build and Release
+
+on:
+push:
+branches: [ "main", "master" ]
+tags:
+- 'v*'
+pull_request:
+branches: [ "main", "master" ]
+
+jobs:
+build:
+name: Build and Zip
+runs-on: windows-latest
+
+steps:
+- name: Checkout Code
+  uses: actions/checkout@v4
+
+- name: Setup .NET 8.0
+  uses: actions/setup-dotnet@v4
+  with:
+    dotnet-version: '8.0.x'
+
+- name: Restore Dependencies
+  run: dotnet restore
+
+- name: Publish Application
+  run: dotnet publish -c Release -r win-x64 --no-restore -o ./publish_output
+
+- name: Zip the Published Files
+  run: Compress-Archive -Path ./publish_output/* -DestinationPath VibBoost-Web-win-x64.zip
+
+- name: Upload Build Artifact
+  uses: actions/upload-artifact@v4
+  with:
+    name: VibBoost-Web-Package
+    path: VibBoost-Web-win-x64.zip
+
+
+release:
+name: Create GitHub Release
+needs: build
+if: startsWith(github.ref, 'refs/tags/')
+runs-on: ubuntu-latest
+permissions:
+contents: write
+
+steps:
+  - name: Download Artifact
+    uses: actions/download-artifact@v4
+    with:
+      name: VibBoost-Web-Package
+
+  - name: Create Release and Upload Asset
+    uses: softprops/action-gh-release@v2
+    with:
+      files: VibBoost-Web-win-x64.zip
+      generate_release_notes: true
