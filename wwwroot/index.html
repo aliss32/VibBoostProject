@@ -2,37 +2,36 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>VibBoost & Web Gamepad Dashboard</title>
+    <title>VibBoost - CMD Motoru Ayar Paneli</title>
     <style>
-        body { background:#121212; color:#e0e0e0; font-family:'Segoe UI', sans-serif; margin:0; padding:20px; }
+        body { background:#121212; color:#e0e0e0; font-family:'Segoe UI', Tahoma, sans-serif; margin:0; padding:20px; }
         h2, h3, h4 { color:#fff; border-bottom: 1px solid #333; padding-bottom: 5px; }
         .panel { background:#1e1e1e; padding:20px; margin:15px auto; max-width:980px; border-radius:10px; box-shadow:0 4px 6px rgba(0,0,0,0.5); }
         .grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
-        .row { margin-bottom:12px; display:flex; align-items:center; justify-content:space-between; background:#2a2a2a; padding:10px; border-radius:6px; }
-        select, input[type=range] { background:#333; color:white; border:1px solid #555; padding:6px; border-radius:4px; outline:none; }
-        input[type=checkbox] { transform: scale(1.3); accent-color: #0078D7; }
-        .btn { padding:10px 20px; background:#0078D7; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold; transition:0.2s; }
+        .row { margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; background:#2a2a2a; padding:8px 12px; border-radius:6px; font-size:14px; }
+        select, input[type=number], input[type=text] { background:#333; color:white; border:1px solid #555; padding:5px; border-radius:4px; outline:none; }
+        input[type=range] { width:120px; accent-color:#0078D7; vertical-align:middle; }
+        input[type=checkbox] { transform: scale(1.2); accent-color: #0078D7; cursor: pointer; }
+        .btn { padding:12px 20px; background:#0078D7; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold; transition:0.2s; }
         .btn:hover { background:#005a9e; }
-        .btn.save { background: #27ae60; width: 100%; font-size: 16px; margin-top: 15px;}
+        .btn.save { background: #27ae60; width: 100%; font-size: 16px; margin-top: 15px; }
         .btn.save:hover { background: #2ecc71; }
-        .bar-container { background: #000; height: 20px; border-radius: 10px; width: 60%; overflow: hidden; margin-left: 10px; display: inline-block; vertical-align: middle; }
-        .bar-fill { height: 100%; transition: width 0.1s; }
-        .controls-group { border:1px solid #444; padding:15px; border-radius:8px; }
+        .controls-group { border:1px solid #444; padding:15px; border-radius:8px; background:#181818; }
+        .val-txt { font-family:monospace; color:#8ecbff; min-width:40px; text-align:right; }
     </style>
 </head>
 <body>
-<h2 style="text-align:center;">VibBoost & Web Gamepad Kontrol Merkezi</h2>
 
-<!-- HAPTIC & AUDIO AYARLARI -->
+<h2 style="text-align:center;">VibBoost CMD Core - Web Ayar Paneli</h2>
+<p style="text-align:center; color:#aaa; font-size:13px;">Burada yaptığınız değişiklikler "Ayarları Kaydet" butonuna bastığınızda anında CMD motoruna aktarılır ve uygulanır.</p>
+
 <div class="panel">
-    <h3>1. Ses & Titreşim Motoru (VibBoost)</h3>
+    <h3>1. Ses & Titreşim Motoru Ayarları</h3>
     <div class="grid">
         <div class="controls-group">
-            <h4>Bağlantılar & Modlar</h4>
-            <div class="row"><b>Ses Çıkış Cihazı</b> 
-                <select id="audio-device"></select>
-            </div>
-            <div class="row"><b>Titreşecek Kollar (Aynı Anda)</b>
+            <h4>Genel Yapılandırma</h4>
+            <div class="row"><b>Ses Çıkış Cihazı</b> <select id="audio-device" style="width:180px;"></select></div>
+            <div class="row"><b>Titreşecek Kollar (Tikleyin)</b>
                 <div>
                     <label><input type="checkbox" id="pad-0"> P1</label>
                     <label><input type="checkbox" id="pad-1"> P2</label>
@@ -40,88 +39,139 @@
                     <label><input type="checkbox" id="pad-3"> P4</label>
                 </div>
             </div>
-            <div class="row"><b>Organik Yumuşatma</b> <input type="checkbox" id="smoothing"></div>
+            <div class="row"><b>Organik Yumuşatma (Smoothing)</b> <input type="checkbox" id="smoothing"></div>
             <div class="row"><b>Sadece Gerçek BASS (DSP)</b> <input type="checkbox" id="bass-mode"></div>
         </div>
-        
+
         <div class="controls-group">
-            <h4>Güç & Hassasiyet</h4>
+            <h4>Güç ve Eşikler</h4>
             <div class="row"><b>Min Titreşim Gücü</b> 
-                <input type="range" id="min-vib" min="0" max="1" step="0.05" value="0.30">
-                <span id="min-vib-val">%30</span>
+                <div><input type="range" id="min-vib" min="0" max="1" step="0.05"><span id="min-vib-val" class="val-txt">%30</span></div>
             </div>
             <div class="row"><b>Gürültü Filtresi (Noise Gate)</b> 
-                <input type="range" id="noise-gate" min="0" max="0.5" step="0.01" value="0.05">
-                <span id="noise-gate-val">%5</span>
+                <div><input type="range" id="noise-gate" min="0" max="0.5" step="0.01"><span id="noise-gate-val" class="val-txt">%5</span></div>
             </div>
         </div>
     </div>
-    <button class="btn save" onclick="saveSettings()">⚙️ Ayarları Cihaza Kaydet (Save)</button>
 </div>
 
-<!-- CANLI İZLEME PANELİ -->
 <div class="panel">
-    <h3>Canlı Monitör</h3>
-    <div style="margin-bottom: 10px;">
-        <b style="display:inline-block; width:120px;">Ses (Audio In):</b>
-        <span id="audio-peak-txt" style="display:inline-block; width:40px; color:#3498db;">%0</span>
-        <div class="bar-container"><div id="audio-bar" class="bar-fill" style="background:#3498db; width: 0%;"></div></div>
-    </div>
-    <div>
-        <b style="display:inline-block; width:120px;">Titreşim (Out):</b>
-        <span id="vib-out-txt" style="display:inline-block; width:40px; color:#2ecc71;">%0</span>
-        <div class="bar-container"><div id="vib-bar" class="bar-fill" style="background:#2ecc71; width: 0%;"></div></div>
-    </div>
-</div>
-
-<!-- WEB GAMEPAD PANELİ -->
-<div class="panel">
-    <h3>2. Web Gamepad Köprüsü (Tarayıcı -> Sanal Kol)</h3>
-    <p style="font-size:13px; color:#aaa;">Direksiyon setleri veya tarayıcı tabanlı kollar için eşleştirme yapın. Veriler saniyede 60 kere doğrudan C# motoruna iletilir.</p>
+    <h3>2. Direksiyon / Gamepad Eksen ve Pedal Eşlemeleri</h3>
     <div class="grid">
         <div class="controls-group">
-            <h4>Sol Çubuk & Fren</h4>
-            <div class="row">Sol X <select id="lx-axis"></select></div>
-            <div class="row">Sol Y <select id="ly-axis"></select></div>
-            <div class="row">Fren (LT) Eksen <select id="lt-axis"></select></div>
+            <h4>Sol Çubuk (Direksiyon - LX / LY)</h4>
+            <div class="row">Direksiyon Eksen (LX) <select id="lx-axis"></select> <label><input type="checkbox" id="lx-inv"> Ters</label></div>
+            <div class="row">Sol Y Eksen <select id="ly-axis"></select> <label><input type="checkbox" id="ly-inv"> Ters</label></div>
+            <div class="row">Deadzone <div><input type="range" id="ls-dz" min="0" max="0.5" step="0.01"><span id="ls-dz-val" class="val-txt">%5</span></div></div>
+            <div class="row">Anti-Deadzone <div><input type="range" id="ls-adz" min="0" max="0.4" step="0.01"><span id="ls-adz-val" class="val-txt">%0</span></div></div>
         </div>
+
         <div class="controls-group">
-            <h4>Sağ Çubuk & Gaz</h4>
-            <div class="row">Sağ X <select id="rx-axis"></select></div>
-            <div class="row">Sağ Y <select id="ry-axis"></select></div>
-            <div class="row">Gaz (RT) Eksen <select id="rt-axis"></select></div>
+            <h4>Sağ Çubuk (RX / RY)</h4>
+            <div class="row">Sağ X Eksen <select id="rx-axis"></select> <label><input type="checkbox" id="rx-inv"> Ters</label></div>
+            <div class="row">Sağ Y Eksen <select id="ry-axis"></select> <label><input type="checkbox" id="ry-inv"> Ters</label></div>
+            <div class="row">Deadzone <div><input type="range" id="rs-dz" min="0" max="0.5" step="0.01"><span id="rs-dz-val" class="val-txt">%5</span></div></div>
+            <div class="row">Anti-Deadzone <div><input type="range" id="rs-adz" min="0" max="0.4" step="0.01"><span id="rs-adz-val" class="val-txt">%0</span></div></div>
+        </div>
+
+        <div class="controls-group">
+            <h4>Fren (Sol Tetik - LT)</h4>
+            <div class="row">Eksen <select id="lt-axis"></select> <label><input type="checkbox" id="lt-inv"> Ters</label></div>
+            <div class="row">Eksen Tipi <select id="lt-type"><option value="full">Pedal (-1 to 1)</option><option value="half">Tetik (0 to 1)</option></select></div>
+            <div class="row">Deadzone <div><input type="range" id="lt-dz" min="0" max="0.5" step="0.01"><span id="lt-dz-val" class="val-txt">%5</span></div></div>
+            <div class="row">Anti-Deadzone <div><input type="range" id="lt-adz" min="0" max="0.4" step="0.01"><span id="lt-adz-val" class="val-txt">%0</span></div></div>
+        </div>
+
+        <div class="controls-group">
+            <h4>Gaz (Sağ Tetik - RT)</h4>
+            <div class="row">Eksen <select id="rt-axis"></select> <label><input type="checkbox" id="rt-inv"> Ters</label></div>
+            <div class="row">Eksen Tipi <select id="rt-type"><option value="full">Pedal (-1 to 1)</option><option value="half">Tetik (0 to 1)</option></select></div>
+            <div class="row">Deadzone <div><input type="range" id="rt-dz" min="0" max="0.5" step="0.01"><span id="rt-dz-val" class="val-txt">%5</span></div></div>
+            <div class="row">Anti-Deadzone <div><input type="range" id="rt-adz" min="0" max="0.4" step="0.01"><span id="rt-adz-val" class="val-txt">%0</span></div></div>
         </div>
     </div>
-    <div style="margin-top: 15px;">
-        <button class="btn" id="start-bridge" onclick="toggleBridge()" style="width:100%; font-size:16px;">Sinyal Köprüsünü Başlat</button>
-    </div>
+    
+    <button class="btn save" onclick="saveSettings()">💾 Ayarları Kaydet ve CMD Motoruna Uygula</button>
 </div>
 
 <script>
-    // === VIBBOOST AYARLARI KONTROLÜ ===
+    function popAxisSelect(id, defaultVal) {
+        let sel = document.getElementById(id);
+        sel.innerHTML = '<option value="-1">Atanmadı</option>';
+        for (let i = 0; i < 8; i++) sel.innerHTML += `<option value="${i}">Axis ${i}</option>`;
+        sel.value = defaultVal;
+    }
+
     async function loadSettings() {
+        // Ses Cihazlarını Çek
         const devRes = await fetch('/api/devices');
         const devices = await devRes.json();
-        const sel = document.getElementById('audio-device');
-        sel.innerHTML = '<option value="default">Varsayılan Sistem Sesi</option>';
-        devices.forEach(d => sel.innerHTML += `<option value="${d.id}">${d.name}</option>`);
+        const audioSel = document.getElementById('audio-device');
+        audioSel.innerHTML = '<option value="default">Varsayılan Sistem Sesi</option>';
+        devices.forEach(d => audioSel.innerHTML += `<option value="${d.id}">${d.name}</option>`);
 
+        // Kayıtlı Ayarları Çek
         const setRes = await fetch('/api/settings');
-        const set = await setRes.json();
-        
-        sel.value = set.audioDeviceId;
-        document.getElementById('pad-0').checked = set.selectedPads[0];
-        document.getElementById('pad-1').checked = set.selectedPads[1];
-        document.getElementById('pad-2').checked = set.selectedPads[2];
-        document.getElementById('pad-3').checked = set.selectedPads[3];
-        document.getElementById('smoothing').checked = set.smoothingEnabled;
-        document.getElementById('bass-mode').checked = set.bassModeOnly;
-        
-        document.getElementById('min-vib').value = set.minVibration;
-        document.getElementById('min-vib-val').innerText = '%' + Math.round(set.minVibration * 100);
-        document.getElementById('noise-gate').value = set.noiseGate;
-        document.getElementById('noise-gate-val').innerText = '%' + Math.round(set.noiseGate * 100);
+        const s = await setRes.json();
+
+        audioSel.value = s.audioDeviceId;
+        document.getElementById('pad-0').checked = s.selectedPads[0];
+        document.getElementById('pad-1').checked = s.selectedPads[1];
+        document.getElementById('pad-2').checked = s.selectedPads[2];
+        document.getElementById('pad-3').checked = s.selectedPads[3];
+        document.getElementById('smoothing').checked = s.smoothingEnabled;
+        document.getElementById('bass-mode').checked = s.bassModeOnly;
+
+        document.getElementById('min-vib').value = s.minVibration;
+        document.getElementById('noise-gate').value = s.noiseGate;
+
+        // Eksen Selectleri
+        popAxisSelect('lx-axis', s.lxAxis);
+        popAxisSelect('ly-axis', s.lyAxis);
+        popAxisSelect('rx-axis', s.rxAxis);
+        popAxisSelect('ry-axis', s.ryAxis);
+        popAxisSelect('lt-axis', s.ltAxis);
+        popAxisSelect('rt-axis', s.rtAxis);
+
+        document.getElementById('lx-inv').checked = s.lxInv;
+        document.getElementById('ly-inv').checked = s.lyInv;
+        document.getElementById('rx-inv').checked = s.rxInv;
+        document.getElementById('ry-inv').checked = s.ryInv;
+        document.getElementById('lt-inv').checked = s.ltInv;
+        document.getElementById('rt-inv').checked = s.rtInv;
+
+        document.getElementById('ls-dz').value = s.lsDz;
+        document.getElementById('rs-dz').value = s.rsDz;
+        document.getElementById('lt-dz').value = s.ltDz;
+        document.getElementById('rt-dz').value = s.rtDz;
+
+        document.getElementById('ls-adz').value = s.lsAdz;
+        document.getElementById('rs-adz').value = s.rsAdz;
+        document.getElementById('lt-adz').value = s.ltAdz;
+        document.getElementById('rt-adz').value = s.rtAdz;
+
+        document.getElementById('lt-type').value = s.ltType;
+        document.getElementById('rt-type').value = s.rtType;
+
+        updateLabels();
     }
+
+    function updateLabels() {
+        document.getElementById('min-vib-val').innerText = '%' + Math.round(document.getElementById('min-vib').value * 100);
+        document.getElementById('noise-gate-val').innerText = '%' + Math.round(document.getElementById('noise-gate').value * 100);
+        document.getElementById('ls-dz-val').innerText = '%' + Math.round(document.getElementById('ls-dz').value * 100);
+        document.getElementById('rs-dz-val').innerText = '%' + Math.round(document.getElementById('rs-dz').value * 100);
+        document.getElementById('lt-dz-val').innerText = '%' + Math.round(document.getElementById('lt-dz').value * 100);
+        document.getElementById('rt-dz-val').innerText = '%' + Math.round(document.getElementById('rt-dz').value * 100);
+        document.getElementById('ls-adz-val').innerText = '%' + Math.round(document.getElementById('ls-adz').value * 100);
+        document.getElementById('rs-adz-val').innerText = '%' + Math.round(document.getElementById('rs-adz').value * 100);
+        document.getElementById('lt-adz-val').innerText = '%' + Math.round(document.getElementById('lt-adz').value * 100);
+        document.getElementById('rt-adz-val').innerText = '%' + Math.round(document.getElementById('rt-adz').value * 100);
+    }
+
+    document.querySelectorAll('input[type=range]').forEach(el => {
+        el.addEventListener('input', updateLabels);
+    });
 
     async function saveSettings() {
         const payload = {
@@ -135,77 +185,48 @@
             smoothingEnabled: document.getElementById('smoothing').checked,
             bassModeOnly: document.getElementById('bass-mode').checked,
             minVibration: parseFloat(document.getElementById('min-vib').value),
-            noiseGate: parseFloat(document.getElementById('noise-gate').value)
+            noiseGate: parseFloat(document.getElementById('noise-gate').value),
+            
+            lxAxis: parseInt(document.getElementById('lx-axis').value),
+            lyAxis: parseInt(document.getElementById('ly-axis').value),
+            rxAxis: parseInt(document.getElementById('rx-axis').value),
+            ryAxis: parseInt(document.getElementById('ry-axis').value),
+            ltAxis: parseInt(document.getElementById('lt-axis').value),
+            rtAxis: parseInt(document.getElementById('rt-axis').value),
+
+            lxInv: document.getElementById('lx-inv').checked,
+            lyInv: document.getElementById('ly-inv').checked,
+            rxInv: document.getElementById('rx-inv').checked,
+            ryInv: document.getElementById('ry-inv').checked,
+            ltInv: document.getElementById('lt-inv').checked,
+            rtInv: document.getElementById('rt-inv').checked,
+
+            lsDz: parseFloat(document.getElementById('ls-dz').value),
+            rsDz: parseFloat(document.getElementById('rs-dz').value),
+            ltDz: parseFloat(document.getElementById('lt-dz').value),
+            rtDz: parseFloat(document.getElementById('rt-dz').value),
+
+            lsAdz: parseFloat(document.getElementById('ls-adz').value),
+            rsAdz: parseFloat(document.getElementById('rs-adz').value),
+            ltadz: parseFloat(document.getElementById('lt-adz').value),
+            rtAdz: parseFloat(document.getElementById('rt-adz').value),
+
+            ltType: document.getElementById('lt-type').value,
+            rtType: document.getElementById('rt-type').value
         };
-        await fetch('/api/settings', {
+
+        const res = await fetch('/api/settings', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
-        alert('Ayarlar Başarıyla Kaydedildi! Sinyal ve titreşim güncellendi.');
-    }
 
-    // Slider Eventleri
-    document.getElementById('min-vib').addEventListener('input', e => document.getElementById('min-vib-val').innerText = '%' + Math.round(e.target.value * 100));
-    document.getElementById('noise-gate').addEventListener('input', e => document.getElementById('noise-gate-val').innerText = '%' + Math.round(e.target.value * 100));
-
-    // Canlı Monitör Güncellemesi
-    setInterval(async () => {
-        const res = await fetch('/api/status');
-        const status = await res.json();
-        document.getElementById('audio-bar').style.width = (status.peak * 100) + '%';
-        document.getElementById('audio-peak-txt').innerText = '%' + Math.round(status.peak * 100);
-        document.getElementById('vib-bar').style.width = (status.vib * 100) + '%';
-        document.getElementById('vib-out-txt').innerText = '%' + Math.round(status.vib * 100);
-    }, 100);
-
-    // === WEB GAMEPAD KÖPRÜSÜ ===
-    let ws = null;
-    let bridgeActive = false;
-
-    function popSelect(id, count, defaultVal) {
-        let sel = document.getElementById(id);
-        sel.innerHTML = '<option value="-1">Atanmadı</option>';
-        for (let i = 0; i < count; i++) sel.innerHTML += `<option value="${i}">Eksen ${i}</option>`;
-        sel.value = defaultVal;
-    }
-    popSelect('lx-axis', 10, 0); popSelect('ly-axis', 10, 1);
-    popSelect('rx-axis', 10, 2); popSelect('ry-axis', 10, 3);
-    popSelect('lt-axis', 10, 4); popSelect('rt-axis', 10, 5);
-
-    function toggleBridge() {
-        bridgeActive = !bridgeActive;
-        const btn = document.getElementById('start-bridge');
-        if (bridgeActive) {
-            btn.innerText = "Sinyal Aktif (Durdurmak İçin Tıkla)";
-            btn.style.background = "#c0392b";
-            ws = new WebSocket("ws://" + window.location.host + "/ws");
+        if (res.ok) {
+            alert('Ayarlar başarıyla kaydedildi! CMD motoru anında güncellendi.');
         } else {
-            btn.innerText = "Sinyal Köprüsünü Başlat";
-            btn.style.background = "#0078D7";
-            if (ws) ws.close();
+            alert('Ayarlar kaydedilirken hata oluştu.');
         }
     }
-
-    setInterval(() => {
-        if (!bridgeActive || !ws || ws.readyState !== WebSocket.OPEN) return;
-        const gps = navigator.getGamepads();
-        const gp = gps[0] || gps[1] || gps[2] || gps[3];
-        if (!gp) return;
-
-        const val = (id) => {
-            const idx = parseInt(document.getElementById(id).value);
-            return (idx >= 0 && gp.axes[idx] !== undefined) ? gp.axes[idx] : 0;
-        };
-
-        // Web Gamepad Payload C#'a gönderilir
-        const payload = {
-            axes: { lx: val('lx-axis'), ly: val('ly-axis'), rx: val('rx-axis'), ry: val('ry-axis') },
-            triggers: { lt: (val('lt-axis') + 1) / 2, rt: (val('rt-axis') + 1) / 2 },
-            buttons: {}
-        };
-        ws.send(JSON.stringify(payload));
-    }, 16); // 60Hz gönderim hızı
 
     loadSettings();
 </script>
